@@ -1,0 +1,1594 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema Inteligente de Semáforos</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2234;
+    --surface3: #1e2d45;
+    --border: #1e3a5f;
+    --accent: #00f0ff;
+    --accent2: #0080ff;
+    --verde: #00ff7f;
+    --amarillo: #ffd040;
+    --rojo: #ff3355;
+    --text: #e0e8ff;
+    --text2: #8099cc;
+    --glow-verde: 0 0 18px #00ff7f88;
+    --glow-amarillo: 0 0 18px #ffd04088;
+    --glow-rojo: 0 0 18px #ff335588;
+    --font: 'Segoe UI', system-ui, sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:var(--font); min-height:100vh; }
+
+  /* ── Header ── */
+  header {
+    background: linear-gradient(135deg,#0a0e1a,#0d1a2e);
+    border-bottom:1px solid var(--border);
+    padding:14px 24px;
+    display:flex; align-items:center; justify-content:space-between;
+    position:sticky; top:0; z-index:100;
+    box-shadow:0 2px 20px #00f0ff22;
+  }
+  .logo { display:flex; align-items:center; gap:12px; }
+  .logo-icon { font-size:2rem; }
+  .logo-text h1 { font-size:1.1rem; font-weight:700; color:var(--accent); letter-spacing:1px; }
+  .logo-text p { font-size:.7rem; color:var(--text2); }
+  .header-right { display:flex; align-items:center; gap:16px; }
+  .ws-status { display:flex; align-items:center; gap:6px; font-size:.75rem; }
+  .ws-dot { width:8px;height:8px;border-radius:50%;background:#ff3355;transition:background .3s; }
+  .ws-dot.connected { background:var(--verde); box-shadow:var(--glow-verde); animation:pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.5} }
+  .btn { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px; border:none; cursor:pointer; font-size:.82rem; font-weight:600; transition:all .2s; }
+  .btn svg { width:14px; height:14px; }
+  .btn-accent { background:linear-gradient(135deg,var(--accent2),var(--accent)); color:#000; }
+  .btn-accent:hover { transform:translateY(-1px); box-shadow:0 4px 15px #00f0ff44; }
+  .btn-success { background:linear-gradient(135deg,#00c85a,var(--verde)); color:#000; }
+  .btn-danger { background:linear-gradient(135deg,#cc1133,var(--rojo)); color:#fff; }
+  .btn-outline { background:transparent; border:1px solid var(--border); color:var(--text); }
+  .btn-outline:hover { border-color:var(--accent); color:var(--accent); }
+  .btn-sm { padding:5px 10px; font-size:.72rem; }
+  .btn:disabled { opacity:.45; cursor:not-allowed; }
+
+  /* ── Layout ── */
+  .app { display:grid; grid-template-columns:260px 1fr; min-height:calc(100vh - 61px); }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    background:var(--surface);
+    border-right:1px solid var(--border);
+    padding:16px;
+    overflow-y:auto;
+    max-height:calc(100vh - 61px);
+    position:sticky; top:61px;
+  }
+  .sidebar-section { margin-bottom:20px; }
+  .sidebar-title { font-size:.65rem; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:1.5px; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+  .stat-card { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; }
+  .stat-label { font-size:.75rem; color:var(--text2); }
+  .stat-value { font-size:1.3rem; font-weight:700; color:var(--accent); }
+  .stat-verde { color:var(--verde); }
+  .stat-amarillo { color:var(--amarillo); }
+  .stat-rojo { color:var(--rojo); }
+
+  .map-nav-item {
+    padding:8px 10px; border-radius:6px; cursor:pointer;
+    border:1px solid transparent; margin-bottom:4px;
+    transition:all .2s; font-size:.8rem;
+    display:flex; align-items:center; gap:8px;
+  }
+  .map-nav-item:hover { background:var(--surface2); border-color:var(--border); }
+  .map-nav-item.active { background:var(--surface3); border-color:var(--accent); color:var(--accent); }
+  .map-dot { width:8px;height:8px;border-radius:50%;flex-shrink:0; }
+
+  /* ── Main content ── */
+  .main { padding:20px; overflow-y:auto; }
+
+  /* ── Stats bar ── */
+  .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:20px; }
+  .stat-big { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
+  .stat-big .num { font-size:2rem; font-weight:800; line-height:1; }
+  .stat-big .lbl { font-size:.7rem; color:var(--text2); margin-top:3px; text-transform:uppercase; letter-spacing:.5px; }
+  .stat-big.verde-card { border-color:#00ff7f44; background:linear-gradient(135deg,#00ff7f0a,var(--surface)); }
+  .stat-big.amarillo-card { border-color:#ffd04044; background:linear-gradient(135deg,#ffd0400a,var(--surface)); }
+  .stat-big.rojo-card { border-color:#ff335544; background:linear-gradient(135deg,#ff33550a,var(--surface)); }
+
+  /* ── Control panel ── */
+  .control-bar { display:flex; align-items:center; gap:10px; margin-bottom:20px; flex-wrap:wrap; }
+  .ciclo-status { display:flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:8px 14px; font-size:.8rem; }
+  .ciclo-led { width:10px;height:10px;border-radius:50%;background:var(--rojo); transition:background .3s; }
+  .ciclo-led.on { background:var(--verde); box-shadow:var(--glow-verde); animation:pulse 1s infinite; }
+
+  /* ── Tabs ── */
+  .tabs { display:flex; gap:2px; border-bottom:1px solid var(--border); margin-bottom:20px; }
+  .tab { padding:8px 18px; font-size:.8rem; font-weight:600; cursor:pointer; border-bottom:2px solid transparent; color:var(--text2); transition:all .2s; }
+  .tab:hover { color:var(--text); }
+  .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+  .tab-content { display:none; }
+  .tab-content.active { display:block; }
+
+  /* ── Map canvas area ── */
+  .maps-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(420px,1fr)); gap:16px; }
+  .map-card {
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    overflow:hidden; transition:border-color .3s;
+  }
+  .map-card:hover { border-color:var(--accent); }
+  .map-card-header { padding:12px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+  .map-card-title { font-size:.85rem; font-weight:700; }
+  .map-card-sub { font-size:.7rem; color:var(--text2); }
+  .map-canvas-wrap { padding:12px; background:#06090f; }
+  canvas.mapa { border-radius:8px; display:block; width:100%; max-width:100%; }
+
+  /* ── Semáforos table ── */
+  .table-wrap { overflow-x:auto; border-radius:10px; border:1px solid var(--border); }
+  table { width:100%; border-collapse:collapse; font-size:.78rem; }
+  th { background:var(--surface2); color:var(--text2); padding:10px 12px; text-align:left; font-size:.7rem; text-transform:uppercase; letter-spacing:.5px; border-bottom:1px solid var(--border); }
+  td { padding:9px 12px; border-bottom:1px solid #ffffff08; }
+  tr:hover td { background:#ffffff04; }
+  .badge {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:3px 10px; border-radius:20px; font-size:.72rem; font-weight:700;
+  }
+  .badge-verde { background:#00ff7f22; color:var(--verde); border:1px solid #00ff7f44; }
+  .badge-amarillo { background:#ffd04022; color:var(--amarillo); border:1px solid #ffd04044; }
+  .badge-rojo { background:#ff335522; color:var(--rojo); border:1px solid #ff335544; }
+  .badge-dot { width:6px;height:6px;border-radius:50%;background:currentColor; }
+  .badge-activo { background:#00f0ff15; color:var(--accent); border:1px solid #00f0ff33; }
+  .badge-inactivo { background:#ff335515; color:var(--rojo); border:1px solid #ff335533; }
+
+  /* ── Semáforo visual 3D ── */
+  .sem-visual { display:inline-flex; flex-direction:column; align-items:center; gap:3px; background:#111; border-radius:6px; padding:4px; border:1px solid #333; }
+  .sem-light { width:14px;height:14px;border-radius:50%;background:#222;transition:background .3s,box-shadow .3s; }
+  .sem-light.on-verde { background:var(--verde); box-shadow:var(--glow-verde); }
+  .sem-light.on-amarillo { background:var(--amarillo); box-shadow:var(--glow-amarillo); }
+  .sem-light.on-rojo { background:var(--rojo); box-shadow:var(--glow-rojo); }
+
+  /* ── Timer countdown ── */
+  .timer-bar-wrap { width:60px; height:5px; background:#222; border-radius:3px; overflow:hidden; }
+  .timer-bar { height:100%; border-radius:3px; transition:width .9s linear, background .3s; }
+  .timer-text { font-size:.7rem; color:var(--text2); }
+
+  /* ── Modal ── */
+  .modal-overlay { display:none; position:fixed; inset:0; background:#000a; z-index:200; align-items:center; justify-content:center; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:var(--surface); border:1px solid var(--border); border-radius:14px; width:420px; max-width:95vw; padding:24px; }
+  .modal-title { font-size:1rem; font-weight:700; margin-bottom:16px; color:var(--accent); }
+  .form-group { margin-bottom:14px; }
+  .form-group label { display:block; font-size:.75rem; color:var(--text2); margin-bottom:4px; }
+  .form-group input, .form-group select {
+    width:100%; padding:8px 12px; background:var(--surface2); border:1px solid var(--border);
+    border-radius:7px; color:var(--text); font-size:.83rem;
+  }
+  .form-group input:focus, .form-group select:focus { outline:none; border-color:var(--accent); }
+  .modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:18px; }
+
+  /* ── Historial ── */
+  .historial-list { max-height:320px; overflow-y:auto; }
+  .hist-item { display:flex; align-items:center; gap:10px; padding:6px 10px; border-bottom:1px solid #ffffff06; font-size:.75rem; }
+  .hist-item:last-child { border-bottom:none; }
+  .hist-time { color:var(--text2); font-size:.68rem; min-width:130px; }
+
+  /* ── Generador ── */
+  .gen-form { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:20px; }
+  .gen-title { font-size:.9rem; font-weight:700; margin-bottom:14px; color:var(--accent); }
+  .gen-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; }
+
+  /* ── Intersección visual ── */
+  .inter-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:12px; margin-top:12px; }
+  .inter-card { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px; }
+  .inter-name { font-size:.8rem; font-weight:700; margin-bottom:10px; color:var(--accent); }
+  .inter-pos { font-size:.68rem; color:var(--text2); margin-bottom:8px; }
+  .inter-sems { display:flex; gap:8px; flex-wrap:wrap; }
+  .inter-sem-item { display:flex; align-items:center; gap:6px; background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-size:.72rem; }
+
+  /* ── Toast ── */
+  #toast-container { position:fixed; bottom:20px; right:20px; z-index:300; display:flex; flex-direction:column; gap:8px; }
+  .toast { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 16px; font-size:.78rem; min-width:240px; animation:slideIn .3s ease; box-shadow:0 4px 20px #000a; }
+  .toast.success { border-color:var(--verde); }
+  .toast.error { border-color:var(--rojo); }
+  .toast.info { border-color:var(--accent); }
+  @keyframes slideIn { from{transform:translateX(100px);opacity:0}to{transform:translateX(0);opacity:1} }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width:5px; height:5px; }
+  ::-webkit-scrollbar-track { background:var(--surface); }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+  ::-webkit-scrollbar-thumb:hover { background:var(--accent2); }
+
+  .loading { display:flex; align-items:center; justify-content:center; padding:40px; color:var(--text2); gap:10px; }
+  .spinner { width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+</style>
+</head>
+<body>
+
+<!-- SVG ICONS -->
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="icon-traffic-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7V3a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v4"/><path d="M7 7h10"/><circle cx="12" cy="11" r="2"/><circle cx="12" cy="17" r="2"/></symbol>
+  <symbol id="icon-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></symbol>
+  <symbol id="icon-bolt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4.09 12.11a.1.1 0 0 0 .07.17h6.44l-2.05 7.15a.1.1 0 0 0 .17.1L19 9.89a.1.1 0 0 0-.08-.17h-6.37l2.05-7.15a.1.1 0 0 0-.17-.1Z"/></symbol>
+  <symbol id="icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></symbol>
+  <symbol id="icon-stop" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v12H6z"/></symbol>
+  <symbol id="icon-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></symbol>
+  <symbol id="icon-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></symbol>
+  <symbol id="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></symbol>
+  <symbol id="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="icon-map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/></symbol>
+  <symbol id="icon-intersection" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h3"/><path d="M17 7V4h3"/><path d="M4 17v3h3"/><path d="M17 17v3h3"/><path d="M9 9h6v6H9z"/></symbol>
+  <symbol id="icon-history" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol>
+  <symbol id="icon-save" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></symbol>
+  <symbol id="icon-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></symbol>
+  <symbol id="icon-filter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></symbol>
+</svg>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-icon"><svg width="32" height="32" style="color:var(--accent)"><use href="#icon-traffic-light"/></svg></div>
+    <div class="logo-text">
+      <h1>SISTEMA INTELIGENTE DE SEMÁFOROS</h1>
+      <p>Centro de Control de Tráfico · Tiempo Real</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="ws-status">
+      <div class="ws-dot" id="wsDot"></div>
+      <span id="wsLabel">Desconectado</span>
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="refreshAll()"><svg><use href="#icon-refresh"/></svg> Actualizar</button>
+    <button class="btn btn-accent btn-sm" onclick="openGenModal()"><svg><use href="#icon-bolt"/></svg> Generar</button>
+  </div>
+</header>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-title">Estado del Sistema</div>
+      <div class="stat-card"><span class="stat-label">Total Mapas</span><span class="stat-value" id="sb-mapas">—</span></div>
+      <div class="stat-card"><span class="stat-label">Intersecciones</span><span class="stat-value" id="sb-inter">—</span></div>
+      <div class="stat-card"><span class="stat-label">Semáforos</span><span class="stat-value" id="sb-total">—</span></div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-title">Estados</div>
+      <div class="stat-card"><span class="stat-label"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--verde);box-shadow:var(--glow-verde);margin-right:4px"></span>Verde</span><span class="stat-value stat-verde" id="sb-verde">—</span></div>
+      <div class="stat-card"><span class="stat-label"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--amarillo);box-shadow:var(--glow-amarillo);margin-right:4px"></span>Amarillo</span><span class="stat-value stat-amarillo" id="sb-amarillo">—</span></div>
+      <div class="stat-card"><span class="stat-label"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--rojo);box-shadow:var(--glow-rojo);margin-right:4px"></span>Rojo</span><span class="stat-value stat-rojo" id="sb-rojo">—</span></div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-title">Mapas</div>
+      <div id="mapNavList"></div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <!-- Stats bar -->
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-big"><div class="num" id="st-mapas">—</div><div class="lbl">Mapas Activos</div></div>
+      <div class="stat-big"><div class="num" id="st-inter">—</div><div class="lbl">Intersecciones</div></div>
+      <div class="stat-big"><div class="num" id="st-sems">—</div><div class="lbl">Semáforos</div></div>
+      <div class="stat-big verde-card"><div class="num stat-verde" id="st-verde">—</div><div class="lbl">En Verde</div></div>
+      <div class="stat-big amarillo-card"><div class="num stat-amarillo" id="st-amarillo">—</div><div class="lbl">En Amarillo</div></div>
+      <div class="stat-big rojo-card"><div class="num stat-rojo" id="st-rojo">—</div><div class="lbl">En Rojo</div></div>
+    </div>
+
+    <!-- Control bar -->
+    <div class="control-bar">
+      <div class="ciclo-status">
+        <div class="ciclo-led" id="cicloLed"></div>
+        <span id="cicloLabel">Ciclo Detenido</span>
+      </div>
+      <button class="btn btn-success" id="btnIniciar" onclick="iniciarCiclo()"><svg><use href="#icon-play"/></svg> Iniciar Ciclo</button>
+      <button class="btn btn-danger" id="btnDetener" onclick="detenerCiclo()" disabled><svg><use href="#icon-stop"/></svg> Detener Ciclo</button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('mapas')"><svg><use href="#icon-map"/></svg> Mapas</div>
+      <div class="tab" onclick="switchTab('semaforos')"><svg><use href="#icon-traffic-light"/></svg> Semáforos</div>
+      <div class="tab" onclick="switchTab('intersecciones')"><svg><use href="#icon-intersection"/></svg> Intersecciones</div>
+      <div class="tab" onclick="switchTab('historial')"><svg><use href="#icon-history"/></svg> Historial</div>
+    </div>
+
+    <!-- TAB: Mapas -->
+    <div id="tab-mapas" class="tab-content active">
+      <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button class="btn btn-accent btn-sm" id="btnMapAdd" onclick="enterAddMode()"><svg><use href="#icon-plus"/></svg> Agregar Semáforo</button>
+        <button class="btn btn-danger btn-sm" id="btnMapDelete" onclick="enterDeleteMode()"><svg><use href="#icon-trash"/></svg> Eliminar Semáforo</button>
+        <button class="btn btn-outline btn-sm" id="btnMapExit" onclick="exitEditMode()" style="display:none"><svg><use href="#icon-close"/></svg> Salir</button>
+        <span id="mapEditStatus" style="font-size:.75rem;color:var(--text2);margin-left:auto;"></span>
+      </div>
+      <div class="maps-grid" id="mapsGrid">
+        <div class="loading"><div class="spinner"></div> Cargando mapas...</div>
+      </div>
+    </div>
+
+    <!-- TAB: Semáforos -->
+    <div id="tab-semaforos" class="tab-content">
+      <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <select id="filtroMapa" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:7px;font-size:.8rem;" onchange="filtrarSemaforos()">
+          <option value="">Todos los mapas</option>
+        </select>
+        <select id="filtroEstado" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:7px;font-size:.8rem;" onchange="filtrarSemaforos()">
+          <option value="">Todos los estados</option>
+          <option value="verde">Verde</option>
+          <option value="amarillo">Amarillo</option>
+          <option value="rojo">Rojo</option>
+        </select>
+        <button class="btn btn-accent btn-sm" onclick="openAddModal()"><svg><use href="#icon-plus"/></svg> Agregar</button>
+        <button class="btn btn-danger btn-sm" onclick="eliminarSeleccionados()"><svg><use href="#icon-trash"/></svg> Eliminar selección</button>
+        <button class="btn btn-outline btn-sm" onclick="confirmarEliminarTodos()"><svg><use href="#icon-trash"/></svg> Limpiar todo</button>
+        <span id="semCount" style="font-size:.75rem;color:var(--text2);margin-left:auto;"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
+              <th>Estado</th><th>ID</th><th>Mapa</th><th>Intersección</th>
+              <th>Dir.</th><th>Modo</th><th>V</th><th>A</th><th>R</th>
+              <th>Timer</th><th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="semTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB: Intersecciones -->
+    <div id="tab-intersecciones" class="tab-content">
+      <div id="interContent"><div class="loading"><div class="spinner"></div> Cargando...</div></div>
+    </div>
+
+    <!-- TAB: Historial -->
+    <div id="tab-historial" class="tab-content">
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px;">
+        <select id="filtroHistEstado" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:7px;font-size:.8rem;" onchange="loadHistorial()">
+          <option value="">Todos</option>
+          <option value="verde">Verde</option>
+          <option value="amarillo">Amarillo</option>
+          <option value="rojo">Rojo</option>
+        </select>
+        <button class="btn btn-outline btn-sm" onclick="loadHistorial()"><svg><use href="#icon-refresh"/></svg> Recargar</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Semáforo</th><th>Estado</th><th>Fecha</th></tr></thead>
+          <tbody id="histTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL: Generar Semáforos -->
+<div class="modal-overlay" id="genModal">
+  <div class="modal">
+    <div class="modal-title"><svg><use href="#icon-bolt"/></svg> Generar Semáforos Automáticamente</div>
+    <div class="form-group">
+      <label>Mapa (vacío = todos)</label>
+      <select id="genMapa" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:.83rem;">
+        <option value="">Todos los mapas</option>
+      </select>
+    </div>
+    <div class="gen-grid">
+      <div class="form-group"><label>Tiempo Verde (seg)</label><input type="number" id="genVerde" value="30" min="5" max="300"></div>
+      <div class="form-group"><label>Tiempo Amarillo (seg)</label><input type="number" id="genAmarillo" value="5" min="3" max="30"></div>
+      <div class="form-group"><label>Tiempo Rojo (seg)</label><input type="number" id="genRojo" value="30" min="5" max="300"></div>
+    </div>
+    <div class="form-group" style="display:flex;align-items:center;gap:8px;">
+      <input type="checkbox" id="genRegenerar" style="width:auto;">
+      <label for="genRegenerar" style="margin:0;cursor:pointer;">Regenerar (eliminar existentes)</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeGenModal()">Cancelar</button>
+      <button class="btn btn-accent" onclick="generarSemaforos()"><svg><use href="#icon-bolt"/></svg> Generar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Editar Semáforo -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-title"><svg><use href="#icon-edit"/></svg> Configurar Semáforo</div>
+    <input type="hidden" id="editId">
+    <div class="form-group">
+      <label>Estado Manual</label>
+      <select id="editEstado" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:.83rem;">
+        <option value="verde">Verde</option>
+        <option value="amarillo">Amarillo</option>
+        <option value="rojo">Rojo</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Modo</label>
+      <select id="editModo" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:.83rem;">
+        <option value="automatico">Automático</option>
+        <option value="manual">Manual</option>
+      </select>
+    </div>
+    <div class="gen-grid">
+      <div class="form-group"><label>Tiempo Verde (seg)</label><input type="number" id="editVerde" min="5" max="300"></div>
+      <div class="form-group"><label>Tiempo Amarillo (seg)</label><input type="number" id="editAmarillo" min="3" max="30"></div>
+      <div class="form-group"><label>Tiempo Rojo (seg)</label><input type="number" id="editRojo" min="5" max="300"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeEditModal()">Cancelar</button>
+      <button class="btn btn-accent" onclick="guardarSemaforo()"><svg><use href="#icon-save"/></svg> Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Agregar Semáforo -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <div class="modal-title"><svg><use href="#icon-plus"/></svg> Agregar Semáforo Manual</div>
+    <div class="form-group">
+      <label>Mapa</label>
+      <select id="addMapa" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:.83rem;" onchange="updateAddIntersecciones()">
+        <option value="">Seleccionar mapa</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Intersección</label>
+      <select id="addInterseccion" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:.83rem;">
+        <option value="">Seleccionar intersección</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Dirección</label>
+      <select id="addDireccion" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:.83rem;">
+        <option value="NS">Norte-Sur 🡩 (NS)</option>
+        <option value="SN">Sur-Norte 🡫 (SN)</option>
+        <option value="EO">Este-Oeste 🡪 (EO)</option>
+        <option value="OE">Oeste-Este 🡨 (OE)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Estado inicial</label>
+      <select id="addEstado" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:.83rem;">
+        <option value="rojo">Rojo</option>
+        <option value="verde">Verde</option>
+        <option value="amarillo">Amarillo</option>
+      </select>
+    </div>
+    <div class="gen-grid">
+      <div class="form-group"><label>Tiempo Verde (seg)</label><input type="number" id="addVerde" value="30" min="5" max="300"></div>
+      <div class="form-group"><label>Tiempo Amarillo (seg)</label><input type="number" id="addAmarillo" value="5" min="3" max="30"></div>
+      <div class="form-group"><label>Tiempo Rojo (seg)</label><input type="number" id="addRojo" value="30" min="5" max="300"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeAddModal()">Cancelar</button>
+      <button class="btn btn-accent" onclick="crearSemaforo()"><svg><use href="#icon-plus"/></svg> Agregar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Panel flotante de selección para eliminar -->
+<div id="mapDeletePanel" style="display:none;position:fixed;bottom:20px;left:20px;z-index:300;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;min-width:260px;box-shadow:0 8px 30px #000a;">
+  <div style="font-size:.85rem;font-weight:700;color:var(--accent);margin-bottom:10px;">Semáforos seleccionados</div>
+  <div id="mapDeleteList" style="max-height:160px;overflow-y:auto;font-size:.75rem;color:var(--text2);margin-bottom:12px;"></div>
+  <div style="display:flex;gap:8px;">
+    <button class="btn btn-danger btn-sm" onclick="confirmMapDelete()"><svg><use href="#icon-trash"/></svg> Eliminar</button>
+    <button class="btn btn-outline btn-sm" onclick="clearMapSelection()">Limpiar</button>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+const API = '';
+const WS_URL = `ws://${location.host}/ws`;
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let state = { mapas:[], semaforos:[], dashboard:{}, cicloActivo:false, ticks:{}, needsTableUpdate:false };
+let ws = null;
+let wsReconnectTimer = null;
+let currentTab = 'mapas';
+let mapEditMode = null; // 'add' | 'delete'
+let mapHoverSem = null; // {semId, mapaClave, x, y, rot}
+let mapSelectedSems = new Set();
+let lastCanvasMouse = {x:0,y:0};
+
+// ── LOCAL TIMER INTERPOLATION ─────────────────────────────────────────────────
+// El servidor sincroniza cada 1s; aquí interpolamos el contador localmente
+// para evitar saltos cuando hay lag de red o carga.
+function getLocalRemaining(tick) {
+  if (!tick || !tick.duracion_total) return 0;
+  const elapsed = (Date.now() - (tick.lastUpdate || 0)) / 1000;
+  return Math.max(0, tick.duracion_total - elapsed);
+}
+
+function getLocalEstado(tick, sem) {
+  return (tick?.estado) || sem?.estado || 'rojo';
+}
+
+const MAP_STATIC_CACHE = {};
+
+// ── WEBSOCKET ─────────────────────────────────────────────────────────────────
+function connectWS() {
+  if (ws) { ws.close(); ws = null; }
+  try {
+    ws = new WebSocket(WS_URL);
+    ws.onopen = () => {
+      document.getElementById('wsDot').classList.add('connected');
+      document.getElementById('wsLabel').textContent = 'Conectado';
+      toast('WebSocket conectado', 'success');
+    };
+    ws.onmessage = ({ data }) => {
+      try {
+        const msg = JSON.parse(data);
+        if (msg.tipo !== 'estado_live') console.log('[WS]', msg.tipo, msg);
+        handleWsMessage(msg);
+      } catch(e) {}
+    };
+    ws.onclose = () => {
+      document.getElementById('wsDot').classList.remove('connected');
+      document.getElementById('wsLabel').textContent = 'Reconectando...';
+      wsReconnectTimer = setTimeout(connectWS, 3000);
+    };
+    ws.onerror = () => ws.close();
+  } catch(e) {}
+}
+
+function handleWsMessage(msg) {
+  switch(msg.tipo) {
+    case 'estado_inicial':
+      if (msg.data) applyDashboard(msg.data);
+      break;
+    case 'estado_live':
+      if (msg.semaforos) {
+        msg.semaforos.forEach(s => {
+          state.ticks[s.id] = {
+            estado: s.estado,
+            segundos_restantes: s.segundos_restantes,
+            duracion_total: s.duracion_total || s.segundos_restantes,
+            grupo: s.grupo || '',
+            lastUpdate: Date.now()
+          };
+          const idx = state.semaforos.findIndex(x => x.id === s.id);
+          if (idx >= 0) {
+            state.semaforos[idx].estado = s.estado;
+          }
+        });
+        state.needsTableUpdate = true;
+        updateSidebarStats();
+        updateIntersecciones();
+      }
+      break;
+    case 'actualizacion_ciclo':
+      if (msg.semaforos) {
+        msg.semaforos.forEach(s => {
+          const idx = state.semaforos.findIndex(x => x.id === s.id);
+          if (idx >= 0) state.semaforos[idx].estado = s.estado;
+          const dur = s.duracion || (s.estado === 'verde' ? 30 : s.estado === 'amarillo' ? 5 : 30);
+          state.ticks[s.id] = {
+            ...state.ticks[s.id],
+            estado: s.estado,
+            duracion_total: dur,
+            segundos_restantes: dur,
+            lastUpdate: Date.now()
+          };
+        });
+        state.needsTableUpdate = true;
+        updateSidebarStats();
+        updateIntersecciones();
+      }
+      break;
+    case 'semaforos_generados':
+      toast(`${msg.semaforos_creados} semáforos generados`, 'success');
+      refreshAll();
+      break;
+    case 'semaforo_creado':
+      toast('Semáforo creado', 'success');
+      refreshAll();
+      break;
+    case 'semaforo_eliminado':
+    case 'semaforos_eliminados':
+      toast('Semáforo(s) eliminado(s)', 'info');
+      refreshAll();
+      break;
+    case 'estado_cambiado':
+      refreshSemaforos();
+      break;
+    case 'ciclo_detenido':
+      state.cicloActivo = false;
+      updateCicloUI();
+      break;
+  }
+}
+
+// ── FETCH HELPERS ─────────────────────────────────────────────────────────────
+async function apiFetch(path, opts = {}) {
+  const r = await fetch(API + path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts
+  });
+  if (!r.ok) {
+    const err = await r.text();
+    throw new Error(err);
+  }
+  return r.json();
+}
+
+// ── MAIN LOAD ─────────────────────────────────────────────────────────────────
+async function refreshAll() {
+  clearStaticCache();
+  await Promise.all([loadDashboard(), loadMapas()]);
+}
+
+async function loadDashboard() {
+  try {
+    const data = await apiFetch('/api/dashboard');
+    applyDashboard(data);
+  } catch(e) { toast('Error cargando dashboard: ' + e.message, 'error'); }
+}
+
+function applyDashboard(data) {
+  state.dashboard = data;
+  if (data.semaforos) state.semaforos = data.semaforos;
+  if (data.stats) {
+    const s = data.stats;
+    document.getElementById('sb-mapas').textContent = s.total_mapas;
+    document.getElementById('sb-inter').textContent = s.total_intersecciones;
+    document.getElementById('sb-total').textContent = s.total_semaforos;
+    document.getElementById('sb-verde').textContent = s.semaforos_verde;
+    document.getElementById('sb-amarillo').textContent = s.semaforos_amarillo;
+    document.getElementById('sb-rojo').textContent = s.semaforos_rojo;
+    document.getElementById('st-mapas').textContent = s.total_mapas;
+    document.getElementById('st-inter').textContent = s.total_intersecciones;
+    document.getElementById('st-sems').textContent = s.total_semaforos;
+    document.getElementById('st-verde').textContent = s.semaforos_verde;
+    document.getElementById('st-amarillo').textContent = s.semaforos_amarillo;
+    document.getElementById('st-rojo').textContent = s.semaforos_rojo;
+    state.cicloActivo = s.ciclo_activo;
+    updateCicloUI();
+  }
+  if (data.tick_counters) {
+    Object.entries(data.tick_counters).forEach(([k,v]) => { state.ticks[k] = v; });
+  }
+  if (data.mapas) {
+    state.mapas = data.mapas;
+    renderMaps();
+    renderMapNav();
+    updateFiltros();
+    updateIntersecciones();
+  }
+  updateSemTable();
+  if (data.historial) updateHistorial(data.historial);
+}
+
+async function loadMapas() {
+  try {
+    const mapas = await apiFetch('/api/mapas');
+    // Mapas ya vienen en dashboard, pero si no hay semáforos generamos info
+    if (!state.mapas.length) {
+      state.mapas = mapas.map(m => ({
+        clave: m.clave, nombre: m.nombre, color_tema: m.color_tema,
+        width: m.width, height: m.height,
+        total_intersecciones: m.config?.intersecciones?.length || 0,
+        total_semaforos: 0, intersecciones: [], config: m.config
+      }));
+      renderMaps();
+      renderMapNav();
+      updateFiltros();
+    }
+    // Populate genMapa select
+    const sel = document.getElementById('genMapa');
+    sel.innerHTML = '<option value="">Todos los mapas</option>';
+    mapas.forEach(m => {
+      sel.innerHTML += `<option value="${m.clave}">${m.nombre}</option>`;
+    });
+  } catch(e) {}
+}
+
+async function refreshSemaforos() {
+  try {
+    state.semaforos = await apiFetch('/api/semaforos');
+    updateSemTable();
+    updateSidebarStats();
+    state.mapas.forEach(m => drawMap(m));
+  } catch(e) {}
+}
+
+// ── RENDER MAPS ───────────────────────────────────────────────────────────────
+function clearStaticCache() {
+  for (const key in MAP_STATIC_CACHE) delete MAP_STATIC_CACHE[key];
+}
+
+function renderMaps() {
+  const grid = document.getElementById('mapsGrid');
+  if (!state.mapas.length) {
+    grid.innerHTML = '<div style="color:var(--text2);padding:20px;">No hay mapas disponibles</div>';
+    return;
+  }
+  grid.innerHTML = state.mapas.map(m => `
+    <div class="map-card">
+      <div class="map-card-header">
+        <div class="map-dot" style="background:${m.color_tema}; box-shadow:0 0 8px ${m.color_tema}88;"></div>
+        <div>
+          <div class="map-card-title" style="color:${m.color_tema}">${m.nombre}</div>
+          <div class="map-card-sub">${m.total_intersecciones} intersecciones · ${m.total_semaforos} semáforos</div>
+        </div>
+        <button class="btn btn-outline btn-sm" style="margin-left:auto;" onclick="switchTab('semaforos');document.getElementById('filtroMapa').value='${m.clave}';filtrarSemaforos()">Ver Semáforos</button>
+      </div>
+      <div class="map-canvas-wrap">
+        <canvas class="mapa" id="canvas-${m.clave}" width="${m.width || 800}" height="${m.height || 800}"></canvas>
+      </div>
+    </div>
+  `).join('');
+  state.mapas.forEach(m => drawMap(m));
+  attachCanvasListeners();
+}
+
+function renderMapNav() {
+  const nav = document.getElementById('mapNavList');
+  nav.innerHTML = state.mapas.map(m => `
+    <div class="map-nav-item" id="nav-${m.clave}" onclick="focusMap('${m.clave}')">
+      <div class="map-dot" style="background:${m.color_tema}"></div>
+      <span>${m.nombre}</span>
+    </div>
+  `).join('');
+}
+
+function focusMap(clave) {
+  document.querySelectorAll('.map-nav-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('nav-' + clave)?.classList.add('active');
+  const card = document.getElementById('canvas-' + clave)?.closest('.map-card');
+  card?.scrollIntoView({ behavior:'smooth', block:'start' });
+  switchTab('mapas');
+}
+
+// ── DRAW MAP ON CANVAS ────────────────────────────────────────────────────────
+const SEM_HITBOXES = {};
+const COLORS_MAP = {verde:'#00ff7f', amarillo:'#ffd040', rojo:'#ff3355'};
+const COLORS_DIM = {verde:'#00ff7f66', amarillo:'#ffd04066', rojo:'#ff335566'};
+const ROAD_W = 28;
+
+function getDirsValidas(pos, cfg) {
+  return [
+    {dir:'NS', dx:0, dy:-(ROAD_W/2+14), rot:0},
+    {dir:'SN', dx:0, dy:(ROAD_W/2+14), rot:Math.PI},
+    {dir:'EO', dx:(ROAD_W/2+14), dy:0, rot:Math.PI/2},
+    {dir:'OE', dx:-(ROAD_W/2+14), dy:0, rot:-Math.PI/2}
+  ];
+}
+
+function getStaticCanvas(mapa) {
+  const key = mapa.clave + '_' + (mapa.config ? JSON.stringify(mapa.config) : '');
+  if (MAP_STATIC_CACHE[key]) return MAP_STATIC_CACHE[key];
+
+  const W = mapa.width || 800, H = mapa.height || 800;
+  const off = document.createElement('canvas');
+  off.width = W; off.height = H;
+  const ctx = off.getContext('2d');
+  const cfg = mapa.config || {};
+  const color = mapa.color_tema || '#00f0ff';
+  const SIDEWALK_W = 4;
+
+  ctx.fillStyle = '#0c1220';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.strokeStyle = '#ffffff05'; ctx.lineWidth = 1;
+  for(let x=0;x<W;x+=50){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<H;y+=50){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+
+  (cfg.avenidas_horizontales||[]).forEach(av => {
+    ctx.fillStyle = '#1a2235';
+    ctx.fillRect(av.x_ini, av.y - ROAD_W/2 - SIDEWALK_W, av.x_fin - av.x_ini, ROAD_W + SIDEWALK_W*2);
+    ctx.fillStyle = '#2a3550';
+    ctx.fillRect(av.x_ini, av.y - ROAD_W/2, av.x_fin - av.x_ini, ROAD_W);
+    ctx.strokeStyle = '#ffffff20'; ctx.lineWidth = 1; ctx.setLineDash([8,12]);
+    ctx.beginPath(); ctx.moveTo(av.x_ini, av.y); ctx.lineTo(av.x_fin, av.y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.strokeStyle = '#ffffff0a'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(av.x_ini, av.y - ROAD_W/2); ctx.lineTo(av.x_fin, av.y - ROAD_W/2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(av.x_ini, av.y + ROAD_W/2); ctx.lineTo(av.x_fin, av.y + ROAD_W/2); ctx.stroke();
+  });
+
+  (cfg.avenidas_verticales||[]).forEach(av => {
+    ctx.fillStyle = '#1a2235';
+    ctx.fillRect(av.x - ROAD_W/2 - SIDEWALK_W, av.y_ini, ROAD_W + SIDEWALK_W*2, av.y_fin - av.y_ini);
+    ctx.fillStyle = '#2a3550';
+    ctx.fillRect(av.x - ROAD_W/2, av.y_ini, ROAD_W, av.y_fin - av.y_ini);
+    ctx.strokeStyle = '#ffffff20'; ctx.lineWidth = 1; ctx.setLineDash([8,12]);
+    ctx.beginPath(); ctx.moveTo(av.x, av.y_ini); ctx.lineTo(av.x, av.y_fin); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.strokeStyle = '#ffffff0a'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(av.x - ROAD_W/2, av.y_ini); ctx.lineTo(av.x - ROAD_W/2, av.y_fin); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(av.x + ROAD_W/2, av.y_ini); ctx.lineTo(av.x + ROAD_W/2, av.y_fin); ctx.stroke();
+  });
+
+  (cfg.curvas||[]).forEach(c => {
+    ctx.strokeStyle = '#2a3550'; ctx.lineWidth = ROAD_W;
+    ctx.beginPath();
+    ctx.arc(c.cx, c.cy, c.R, (c.ang_ini * Math.PI/180), (c.ang_fin * Math.PI/180));
+    ctx.stroke();
+  });
+
+  (cfg.intersecciones||[]).forEach((inter, idx) => {
+    const [px, py] = inter.pos;
+    ctx.fillStyle = '#2a3550';
+    ctx.fillRect(px - ROAD_W/2, py - ROAD_W/2, ROAD_W, ROAD_W);
+
+    const grd = ctx.createRadialGradient(px,py,2,px,py,24);
+    grd.addColorStop(0, color + '30'); grd.addColorStop(1, 'transparent');
+    ctx.fillStyle = grd;
+    ctx.beginPath(); ctx.arc(px, py, 24, 0, Math.PI*2); ctx.fill();
+
+    ctx.strokeStyle = color + '55'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(px, py, 22, 0, Math.PI*2); ctx.stroke();
+
+    const name = (inter.nombre||'').replace('\n',' ');
+    ctx.fillStyle = color; ctx.font = 'bold 9px Segoe UI';
+    ctx.textAlign = 'center'; ctx.fillText(name.slice(0,20), px, py - 30);
+  });
+
+  ctx.font = 'bold 10px Segoe UI'; ctx.textAlign = 'left';
+  const names = cfg.nombres_avenidas || {};
+  let ni = 0;
+  Object.values(names).forEach((n) => {
+    ctx.fillStyle = color + '88';
+    ctx.fillText(n, 6, 14 + ni * 14);
+    ni++;
+  });
+
+  MAP_STATIC_CACHE[key] = off;
+  return off;
+}
+
+function drawMap(mapa) {
+  const canvas = document.getElementById('canvas-' + mapa.clave);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = mapa.width || 800, H = mapa.height || 800;
+  canvas.width = W; canvas.height = H;
+  const cfg = mapa.config || {};
+  const color = mapa.color_tema || '#00f0ff';
+
+  // Dibujar capa estática cacheada (calles, nombres, intersecciones)
+  const staticCanvas = getStaticCanvas(mapa);
+  ctx.drawImage(staticCanvas, 0, 0);
+
+  // Dibujar solo los semáforos (lo único que cambia)
+  (cfg.intersecciones||[]).forEach((inter, idx) => {
+    const [px, py] = inter.pos;
+    const intId = `${mapa.clave}-int-${idx}-${px}-${py}`;
+    const sems = state.semaforos.filter(s => s.interseccion_id === intId);
+    const dirsValidas = getDirsValidas(inter.pos, cfg);
+
+    dirsValidas.forEach(({dx,dy,dir,rot}) => {
+      const sem = sems.find(s => s.direccion === dir);
+      if (!sem) return;
+      const sx = px + dx, sy = py + dy;
+      const tick = state.ticks[sem.id] || {};
+      const estado = getLocalEstado(tick, sem);
+      const segs = getLocalRemaining(tick);
+      const isSelected = mapSelectedSems.has(sem.id);
+      const isHover = mapHoverSem && mapHoverSem.semId === sem.id && mapHoverSem.mapaClave === mapa.clave;
+
+      drawTrafficLight(ctx, sx, sy, estado, segs, sem, rot);
+
+      // Indicadores de selección / hover en modo edición
+      if (mapEditMode === 'delete' && (isSelected || isHover)) {
+        ctx.save();
+        ctx.translate(sx, sy);
+        ctx.strokeStyle = isSelected ? 'var(--rojo)' : '#fff';
+        ctx.lineWidth = isSelected ? 3 : 2;
+        ctx.setLineDash(isSelected ? [] : [4, 3]);
+        ctx.beginPath();
+        ctx.arc(0, 0, 22, 0, Math.PI*2);
+        ctx.stroke();
+        if (isSelected) {
+          ctx.fillStyle = 'var(--rojo)';
+          ctx.font = 'bold 10px Segoe UI';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('×', 0, 0);
+        }
+        ctx.restore();
+      }
+
+      const key = mapa.clave + '_' + sem.id;
+      SEM_HITBOXES[key] = {x:sx-12, y:sy-18, w:24, h:36, semId:sem.id, mapaClave:mapa.clave, sx, sy, rot};
+    });
+  });
+}
+
+function drawTrafficLight(ctx, x, y, estado, segs, sem, rot) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+
+  const bw = 16, bh = 38, br = 4;
+  ctx.fillStyle = '#0a0a0a';
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.roundRect(-bw/2, -bh/2, bw, bh, br); ctx.fill(); ctx.stroke();
+
+  const lr = 5;
+  const positions = [
+    {cy: -bh/2 + 8, color: 'rojo'},
+    {cy: 0, color: 'amarillo'},
+    {cy: bh/2 - 8, color: 'verde'}
+  ];
+
+  positions.forEach(({cy, color}) => {
+    const isActive = estado === color;
+    ctx.beginPath();
+    ctx.arc(0, cy, lr, 0, Math.PI*2);
+    if (isActive) {
+      const col = COLORS_MAP[color];
+      ctx.fillStyle = col;
+      ctx.shadowColor = col;
+      ctx.shadowBlur = color === 'amarillo' ? 18 : 14;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    } else {
+      ctx.fillStyle = COLORS_DIM[color];
+      ctx.fill();
+    }
+    ctx.strokeStyle = '#22222288';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+  });
+
+  const maxT = estado === 'verde' ? (sem.tiempo_verde||30) : estado === 'amarillo' ? (sem.tiempo_amarillo||5) : (sem.tiempo_rojo||30);
+  if (maxT > 0 && segs > 0) {
+    const pct = segs / maxT;
+    const barW = bw;
+    const barH = 2;
+    const barY = -bh/2 - 5;
+    ctx.fillStyle = '#222';
+    ctx.fillRect(-barW/2, barY, barW, barH);
+    ctx.fillStyle = COLORS_MAP[estado];
+    ctx.fillRect(-barW/2, barY, barW * pct, barH);
+  }
+
+  ctx.restore();
+
+  if (segs > 0) {
+    const col = COLORS_MAP[estado] || '#fff';
+    ctx.save();
+    ctx.font = 'bold 10px Segoe UI';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = col;
+    ctx.fillText(Math.ceil(segs) + 's', x + 14, y);
+    ctx.restore();
+  }
+}
+
+function handleCanvasClick(e) {
+  const canvas = e.target;
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const mx = (e.clientX - rect.left) * scaleX;
+  const my = (e.clientY - rect.top) * scaleY;
+
+  // Encontrar semáforo clickeado
+  let clicked = null;
+  for (const [key, hb] of Object.entries(SEM_HITBOXES)) {
+    if (mx >= hb.x && mx <= hb.x + hb.w && my >= hb.y && my <= hb.y + hb.h) {
+      clicked = hb;
+      break;
+    }
+  }
+
+  if (mapEditMode === 'delete' && clicked) {
+    toggleMapSelection(clicked.semId);
+    return;
+  }
+
+  if (mapEditMode === 'add') {
+    // Si hizo clic cerca de una intersección, abrir modal con esa intersección
+    const inter = findNearestIntersection(mx, my, canvas.id.replace('canvas-',''));
+    if (inter) {
+      openAddModalAt(inter);
+    } else {
+      openAddModal();
+    }
+    return;
+  }
+
+  if (clicked) {
+    const sem = state.semaforos.find(s => s.id === clicked.semId);
+    if (!sem) return;
+    const tick = state.ticks[sem.id] || {};
+    const curEstado = getLocalEstado(tick, sem);
+    const next = curEstado === 'verde' ? 'amarillo' : curEstado === 'amarillo' ? 'rojo' : 'verde';
+    cambiarEstado(clicked.semId, next);
+  }
+}
+
+function handleCanvasMove(e) {
+  const canvas = e.target;
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const mx = (e.clientX - rect.left) * scaleX;
+  const my = (e.clientY - rect.top) * scaleY;
+  lastCanvasMouse = {x:mx, y:my};
+
+  let over = null;
+  for (const [key, hb] of Object.entries(SEM_HITBOXES)) {
+    if (mx >= hb.x && mx <= hb.x + hb.w && my >= hb.y && my <= hb.y + hb.h) {
+      over = hb; break;
+    }
+  }
+
+  if (mapEditMode === 'delete') {
+    if (over && (!mapHoverSem || mapHoverSem.semId !== over.semId)) {
+      mapHoverSem = {semId: over.semId, mapaClave: over.mapaClave, x: over.sx, y: over.sy};
+      state.mapas.forEach(m => drawMap(m));
+    } else if (!over && mapHoverSem) {
+      mapHoverSem = null;
+      state.mapas.forEach(m => drawMap(m));
+    }
+    canvas.style.cursor = over ? 'pointer' : 'crosshair';
+    return;
+  }
+
+  if (mapEditMode === 'add') {
+    canvas.style.cursor = 'crosshair';
+    return;
+  }
+
+  canvas.style.cursor = over ? 'pointer' : 'default';
+}
+
+function findNearestIntersection(mx, my, mapaClave) {
+  const mapa = state.mapas.find(m => m.clave === mapaClave);
+  if (!mapa || !mapa.config?.intersecciones) return null;
+  let best = null, bestDist = 80; // radio de tolerancia en px
+  mapa.config.intersecciones.forEach((inter, idx) => {
+    const [px, py] = inter.pos;
+    const d = Math.hypot(mx - px, my - py);
+    if (d < bestDist) {
+      bestDist = d;
+      best = { mapa, inter, idx, intId: `${mapa.clave}-int-${idx}-${px}-${py}` };
+    }
+  });
+  return best;
+}
+
+function enterDeleteMode() {
+  mapEditMode = 'delete';
+  document.getElementById('btnMapAdd').style.display = 'none';
+  document.getElementById('btnMapDelete').style.display = 'none';
+  document.getElementById('btnMapExit').style.display = '';
+  document.getElementById('mapEditStatus').textContent = 'Modo: eliminar semáforos (clic para seleccionar)';
+  document.getElementById('mapDeletePanel').style.display = 'block';
+  state.mapas.forEach(m => drawMap(m));
+}
+
+function enterAddMode() {
+  mapEditMode = 'add';
+  document.getElementById('btnMapAdd').style.display = 'none';
+  document.getElementById('btnMapDelete').style.display = 'none';
+  document.getElementById('btnMapExit').style.display = '';
+  document.getElementById('mapEditStatus').textContent = 'Modo: agregar semáforo (clic en una intersección)';
+  state.mapas.forEach(m => drawMap(m));
+}
+
+function exitEditMode() {
+  mapEditMode = null;
+  mapHoverSem = null;
+  document.getElementById('btnMapAdd').style.display = '';
+  document.getElementById('btnMapDelete').style.display = '';
+  document.getElementById('btnMapExit').style.display = 'none';
+  document.getElementById('mapEditStatus').textContent = '';
+  document.getElementById('mapDeletePanel').style.display = 'none';
+  state.mapas.forEach(m => drawMap(m));
+}
+
+function toggleMapSelection(semId) {
+  if (mapSelectedSems.has(semId)) {
+    mapSelectedSems.delete(semId);
+  } else {
+    mapSelectedSems.add(semId);
+  }
+  updateMapDeletePanel();
+  state.mapas.forEach(m => drawMap(m));
+}
+
+function clearMapSelection() {
+  mapSelectedSems.clear();
+  updateMapDeletePanel();
+  state.mapas.forEach(m => drawMap(m));
+}
+
+function updateMapDeletePanel() {
+  const list = document.getElementById('mapDeleteList');
+  if (!mapSelectedSems.size) {
+    list.innerHTML = 'Ningún semáforo seleccionado.';
+    return;
+  }
+  const items = [...mapSelectedSems].map(id => {
+    const s = state.semaforos.find(x => x.id === id);
+    return s ? `#${id} ${s.direccion} (${s.mapa_clave})` : `#${id}`;
+  });
+  list.innerHTML = items.map(t => `<div style="padding:2px 0">${t}</div>`).join('');
+}
+
+async function confirmMapDelete() {
+  const ids = [...mapSelectedSems];
+  if (!ids.length) { toast('No hay semáforos seleccionados', 'error'); return; }
+  if (!confirm(`¿Eliminar ${ids.length} semáforo(s) seleccionado(s)?`)) return;
+  try {
+    await apiFetch('/api/semaforos/eliminar', { method: 'POST', body: JSON.stringify({ ids }) });
+    state.semaforos = state.semaforos.filter(s => !ids.includes(s.id));
+    ids.forEach(id => delete state.ticks[id]);
+    mapSelectedSems.clear();
+    updateMapDeletePanel();
+    state.needsTableUpdate = true;
+    updateSemTable(true);
+    clearStaticCache();
+    state.mapas.forEach(m => drawMap(m));
+    toast(`${ids.length} semáforos eliminados`, 'info');
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+function openAddModalAt({mapa, inter, idx}) {
+  const selMapa = document.getElementById('addMapa');
+  selMapa.innerHTML = state.mapas.map(m => `<option value="${m.clave}" ${m.clave===mapa.clave?'selected':''}>${m.nombre}</option>`).join('');
+  updateAddIntersecciones();
+  const selInter = document.getElementById('addInterseccion');
+  const intId = `${mapa.clave}-int-${idx}-${inter.pos[0]}-${inter.pos[1]}`;
+  selInter.value = intId;
+  document.getElementById('addModal').classList.add('open');
+}
+
+function attachCanvasListeners() {
+  document.querySelectorAll('canvas.mapa').forEach(c => {
+    if (!c._listenerAttached) {
+      c.addEventListener('click', handleCanvasClick);
+      c.addEventListener('mousemove', handleCanvasMove);
+      c._listenerAttached = true;
+    }
+  });
+}
+
+// ── SEMÁFOROS TABLE ───────────────────────────────────────────────────────────
+function updateSemTable(force = false) {
+  if (!force && !state.needsTableUpdate) return;
+  state.needsTableUpdate = false;
+
+  const tbody = document.getElementById('semTable');
+  const filtroMapa = document.getElementById('filtroMapa')?.value || '';
+  const filtroEstado = document.getElementById('filtroEstado')?.value || '';
+
+  let sems = state.semaforos;
+  if (filtroMapa) sems = sems.filter(s => s.mapa_clave === filtroMapa);
+  if (filtroEstado) sems = sems.filter(s => s.estado === filtroEstado);
+
+  document.getElementById('semCount').textContent = `${sems.length} semáforos`;
+
+  if (!sems.length) {
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:var(--text2);padding:30px;">
+      No hay semáforos. Haz clic en "Generar Semáforos"
+    </td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = sems.map(s => {
+    const tick = state.ticks[s.id] || {};
+    const estado = getLocalEstado(tick, s);
+    const segundos = getLocalRemaining(tick);
+    const selected = document.getElementById('sel-' + s.id)?.checked || false;
+    const maxT = tick.duracion_total || (estado === 'verde' ? s.tiempo_verde : estado === 'amarillo' ? s.tiempo_amarillo : s.tiempo_rojo);
+    const pct = maxT > 0 ? Math.min(100, Math.max(0, (segundos / maxT) * 100)) : 0;
+    const colors = {verde:'var(--verde)',amarillo:'var(--amarillo)',rojo:'var(--rojo)'};
+    return `
+      <tr>
+        <td><input type="checkbox" id="sel-${s.id}" class="sem-check" data-id="${s.id}" ${selected?'checked':''}></td>
+        <td>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div class="sem-visual">
+              <div class="sem-light ${estado==='rojo'?'on-rojo':''}"></div>
+              <div class="sem-light ${estado==='amarillo'?'on-amarillo':''}"></div>
+              <div class="sem-light ${estado==='verde'?'on-verde':''}"></div>
+            </div>
+            <span class="badge badge-${estado}"><span class="badge-dot"></span>${estado}</span>
+          </div>
+        </td>
+        <td style="color:var(--text2);font-size:.7rem;">#${s.id}</td>
+        <td style="font-size:.75rem;">${s.mapa_clave}</td>
+        <td style="font-size:.72rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.interseccion_nombre||s.interseccion_id}</td>
+        <td><span style="font-size:.72rem;background:var(--surface2);padding:2px 7px;border-radius:4px;">${s.direccion}</span></td>
+        <td><span class="badge ${s.modo==='automatico'?'badge-activo':'badge-inactivo'}">${s.modo}</span></td>
+        <td style="color:var(--verde);font-size:.75rem;">${s.tiempo_verde}</td>
+        <td style="color:var(--amarillo);font-size:.75rem;">${s.tiempo_amarillo}</td>
+        <td style="color:var(--rojo);font-size:.75rem;">${s.tiempo_rojo}</td>
+        <td>
+          <div class="timer-bar-wrap">
+            <div class="timer-bar" style="width:${pct}%;background:${colors[estado]};"></div>
+          </div>
+          <div class="timer-text">${Math.ceil(segundos)}s</div>
+        </td>
+        <td>
+          <div style="display:flex;gap:4px;">
+            <button class="btn btn-outline btn-sm" onclick="openEditModal(${s.id})"><svg><use href="#icon-edit"/></svg></button>
+            <button class="btn btn-sm" style="background:#00ff7f22;color:var(--verde);border:1px solid #00ff7f33;" onclick="cambiarEstado(${s.id},'verde')">V</button>
+            <button class="btn btn-sm" style="background:#ffd04022;color:var(--amarillo);border:1px solid #ffd04033;" onclick="cambiarEstado(${s.id},'amarillo')">A</button>
+            <button class="btn btn-sm" style="background:#ff335522;color:var(--rojo);border:1px solid #ff335533;" onclick="cambiarEstado(${s.id},'rojo')">R</button>
+            <button class="btn btn-sm" style="background:#ff335522;color:var(--rojo);border:1px solid #ff335533;" onclick="eliminarSemaforo(${s.id})"><svg><use href="#icon-trash"/></svg></button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function filtrarSemaforos() { updateSemTable(); }
+
+function updateFiltros() {
+  const sel = document.getElementById('filtroMapa');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Todos los mapas</option>' +
+    state.mapas.map(m => `<option value="${m.clave}">${m.nombre}</option>`).join('');
+  sel.value = current;
+}
+
+function updateSidebarStats() {
+  const verde = state.semaforos.filter(s => getLocalEstado(state.ticks[s.id], s) === 'verde').length;
+  const amarillo = state.semaforos.filter(s => getLocalEstado(state.ticks[s.id], s) === 'amarillo').length;
+  const rojo = state.semaforos.filter(s => getLocalEstado(state.ticks[s.id], s) === 'rojo').length;
+  document.getElementById('sb-verde').textContent = verde;
+  document.getElementById('sb-amarillo').textContent = amarillo;
+  document.getElementById('sb-rojo').textContent = rojo;
+  document.getElementById('st-verde').textContent = verde;
+  document.getElementById('st-amarillo').textContent = amarillo;
+  document.getElementById('st-rojo').textContent = rojo;
+  document.getElementById('sb-total').textContent = state.semaforos.length;
+  document.getElementById('st-sems').textContent = state.semaforos.length;
+}
+
+// ── INTERSECCIONES ────────────────────────────────────────────────────────────
+function updateIntersecciones() {
+  const container = document.getElementById('interContent');
+  if (!state.mapas.length) return;
+
+  let html = '';
+  state.mapas.forEach(m => {
+    if (!m.intersecciones?.length) return;
+    html += `<div style="margin-bottom:20px;">
+      <div style="font-size:.85rem;font-weight:700;color:${m.color_tema};margin-bottom:8px;padding:8px 12px;background:var(--surface);border-radius:8px;border-left:3px solid ${m.color_tema};">
+        ${m.nombre}
+      </div>
+      <div class="inter-grid">`;
+    m.intersecciones.forEach(inter => {
+      const sems = inter.semaforos || [];
+      html += `<div class="inter-card">
+        <div class="inter-name"><svg><use href="#icon-intersection"/></svg> ${inter.nombre}</div>
+        <div class="inter-pos">Pos: (${inter.pos_x}, ${inter.pos_y}) · ${sems.length} semáforos</div>
+        <div class="inter-sems">`;
+      if (!sems.length) {
+        html += `<span style="font-size:.72rem;color:var(--text2);">Sin semáforos generados</span>`;
+      } else {
+        sems.forEach(s => {
+          const estado = getLocalEstado(state.ticks[s.id], s);
+          const colors = {verde:'var(--verde)',amarillo:'var(--amarillo)',rojo:'var(--rojo)'};
+          html += `<div class="inter-sem-item">
+            <div style="width:8px;height:8px;border-radius:50%;background:${colors[estado]};box-shadow:0 0 6px ${colors[estado]};"></div>
+            <span>${s.direccion}</span>
+            <span style="color:${colors[estado]};font-size:.7rem;">${estado}</span>
+          </div>`;
+        });
+      }
+      html += `</div></div>`;
+    });
+    html += `</div></div>`;
+  });
+
+  if (!html) html = '<div style="color:var(--text2);padding:20px;">No hay datos de intersecciones.</div>';
+  container.innerHTML = html;
+}
+
+// ── HISTORIAL ─────────────────────────────────────────────────────────────────
+async function loadHistorial() {
+  try {
+    const estado = document.getElementById('filtroHistEstado')?.value || '';
+    const url = '/api/ciclos/historial?limit=100' + (estado ? `&estado=${estado}` : '');
+    const data = await apiFetch(url);
+    updateHistorial(data);
+  } catch(e) {}
+}
+
+function updateHistorial(data) {
+  const tbody = document.getElementById('histTable');
+  if (!data?.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text2);padding:20px;">Sin historial</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(h => `
+    <tr>
+      <td style="color:var(--text2);font-size:.7rem;">#${h.id}</td>
+      <td style="font-size:.75rem;">Sem #${h.semaforo_id}</td>
+      <td><span class="badge badge-${h.estado}"><span class="badge-dot"></span>${h.estado}</span></td>
+      <td style="font-size:.72rem;color:var(--text2);">${new Date(h.fecha).toLocaleString()}</td>
+    </tr>
+  `).join('');
+}
+
+// ── CICLO ─────────────────────────────────────────────────────────────────────
+async function iniciarCiclo() {
+  try {
+    const r = await apiFetch('/api/ciclos/iniciar', { method:'POST' });
+    state.cicloActivo = true;
+    updateCicloUI();
+    toast('Ciclo iniciado: ' + r.mensaje, 'success');
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+async function detenerCiclo() {
+  try {
+    const r = await apiFetch('/api/ciclos/detener', { method:'POST' });
+    state.cicloActivo = false;
+    updateCicloUI();
+    toast('Ciclo detenido: ' + r.mensaje, 'info');
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+function updateCicloUI() {
+  const led = document.getElementById('cicloLed');
+  const label = document.getElementById('cicloLabel');
+  const btnI = document.getElementById('btnIniciar');
+  const btnD = document.getElementById('btnDetener');
+  if (state.cicloActivo) {
+    led.classList.add('on');
+    label.textContent = 'Ciclo Automático Activo';
+    btnI.disabled = true;
+    btnD.disabled = false;
+  } else {
+    led.classList.remove('on');
+    label.textContent = 'Ciclo Detenido';
+    btnI.disabled = false;
+    btnD.disabled = true;
+  }
+}
+
+// ── CAMBIAR ESTADO RÁPIDO ─────────────────────────────────────────────────────
+async function cambiarEstado(id, estado) {
+  try {
+    await apiFetch(`/api/semaforos/${id}/estado`, {
+      method: 'PUT',
+      body: JSON.stringify({ estado, modo: 'manual' })
+    });
+    const idx = state.semaforos.findIndex(s => s.id === id);
+    if (idx >= 0) { state.semaforos[idx].estado = estado; state.semaforos[idx].modo = 'manual'; }
+    state.ticks[id] = { ...state.ticks[id], estado };
+    updateSemTable();
+    // Redraw maps
+    state.mapas.forEach(m => drawMap(m));
+    toast(`Semáforo #${id} → ${estado}`, 'success');
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+// ── MODALS ────────────────────────────────────────────────────────────────────
+function openGenModal() { document.getElementById('genModal').classList.add('open'); }
+function closeGenModal() { document.getElementById('genModal').classList.remove('open'); }
+
+async function generarSemaforos() {
+  const body = {
+    mapa_clave: document.getElementById('genMapa').value || null,
+    tiempo_verde: +document.getElementById('genVerde').value,
+    tiempo_amarillo: +document.getElementById('genAmarillo').value,
+    tiempo_rojo: +document.getElementById('genRojo').value,
+    regenerar: document.getElementById('genRegenerar').checked
+  };
+  try {
+    const r = await apiFetch('/api/semaforos/generar', { method:'POST', body: JSON.stringify(body) });
+    toast(`${r.semaforos_creados} creados, ${r.semaforos_existentes} ya existían`, 'success');
+    closeGenModal();
+    clearStaticCache();
+    await loadDashboard();
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+function openEditModal(id) {
+  const sem = state.semaforos.find(s => s.id === id);
+  if (!sem) return;
+  document.getElementById('editId').value = id;
+  document.getElementById('editEstado').value = sem.estado;
+  document.getElementById('editModo').value = sem.modo || 'automatico';
+  document.getElementById('editVerde').value = sem.tiempo_verde;
+  document.getElementById('editAmarillo').value = sem.tiempo_amarillo;
+  document.getElementById('editRojo').value = sem.tiempo_rojo;
+  document.getElementById('editModal').classList.add('open');
+}
+
+function closeEditModal() { document.getElementById('editModal').classList.remove('open'); }
+
+function openAddModal() {
+  const sel = document.getElementById('addMapa');
+  sel.innerHTML = '<option value="">Seleccionar mapa</option>' + state.mapas.map(m => `<option value="${m.clave}">${m.nombre}</option>`).join('');
+  document.getElementById('addModal').classList.add('open');
+  updateAddIntersecciones();
+}
+
+function closeAddModal() { document.getElementById('addModal').classList.remove('open'); }
+
+function updateAddIntersecciones() {
+  const clave = document.getElementById('addMapa').value;
+  const sel = document.getElementById('addInterseccion');
+  const mapa = state.mapas.find(m => m.clave === clave);
+  if (!mapa) {
+    sel.innerHTML = '<option value="">Seleccionar intersección</option>';
+    return;
+  }
+  sel.innerHTML = '<option value="">Seleccionar intersección</option>' + (mapa.config?.intersecciones||[]).map((inter, idx) => {
+    const intId = `${clave}-int-${idx}-${inter.pos[0]}-${inter.pos[1]}`;
+    const nombre = (inter.nombre||`Int ${idx+1}`).replace('\\n',' ');
+    return `<option value="${intId}" data-idx="${idx}">${nombre} (${inter.pos.join(',')})</option>`;
+  }).join('');
+}
+
+async function crearSemaforo() {
+  const mapa_clave = document.getElementById('addMapa').value;
+  const interseccion_id = document.getElementById('addInterseccion').value;
+  const direccion = document.getElementById('addDireccion').value;
+  const estado = document.getElementById('addEstado').value;
+  const tv = +document.getElementById('addVerde').value;
+  const ta = +document.getElementById('addAmarillo').value;
+  const tr = +document.getElementById('addRojo').value;
+  if (!mapa_clave || !interseccion_id) {
+    toast('Seleccioná mapa e intersección', 'error');
+    return;
+  }
+  const mapa = state.mapas.find(m => m.clave === mapa_clave);
+  const opt = document.getElementById('addInterseccion').selectedOptions[0];
+  const idx = +opt.dataset.idx;
+  const inter = mapa.config.intersecciones[idx];
+  try {
+    await apiFetch('/api/semaforos', {
+      method: 'POST',
+      body: JSON.stringify({
+        mapa_clave,
+        interseccion_id,
+        interseccion_nombre: (inter.nombre||`Int ${idx+1}`).replace('\\n',' '),
+        pos_x: inter.pos[0],
+        pos_y: inter.pos[1],
+        direccion,
+        estado,
+        tiempo_verde: tv,
+        tiempo_amarillo: ta,
+        tiempo_rojo: tr,
+        activo: true,
+        modo: 'automatico'
+      })
+    });
+    closeAddModal();
+    await loadDashboard();
+    toast('Semáforo agregado', 'success');
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+async function eliminarSemaforo(id) {
+  if (!confirm('¿Eliminar semáforo #' + id + '?')) return;
+  try {
+    await apiFetch(`/api/semaforos/${id}`, { method: 'DELETE' });
+    state.semaforos = state.semaforos.filter(s => s.id !== id);
+    delete state.ticks[id];
+    state.needsTableUpdate = true;
+    updateSemTable(true);
+    toast('Semáforo eliminado', 'info');
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+function toggleSelectAll() {
+  const checked = document.getElementById('selectAll').checked;
+  document.querySelectorAll('.sem-check').forEach(cb => cb.checked = checked);
+}
+
+async function eliminarSeleccionados() {
+  const ids = [...document.querySelectorAll('.sem-check:checked')].map(cb => +cb.dataset.id);
+  if (!ids.length) { toast('No hay semáforos seleccionados', 'error'); return; }
+  if (!confirm(`¿Eliminar ${ids.length} semáforo(s)?`)) return;
+  try {
+    await apiFetch('/api/semaforos/eliminar', { method: 'POST', body: JSON.stringify({ ids }) });
+    state.semaforos = state.semaforos.filter(s => !ids.includes(s.id));
+    ids.forEach(id => delete state.ticks[id]);
+    document.getElementById('selectAll').checked = false;
+    state.needsTableUpdate = true;
+    updateSemTable(true);
+    toast(`${ids.length} semáforos eliminados`, 'info');
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+async function confirmarEliminarTodos() {
+  if (!confirm('¿ELIMINAR TODOS los semáforos? Esta acción no se puede deshacer.')) return;
+  try {
+    const r = await apiFetch('/api/semaforos/todos/confirmar', { method: 'DELETE' });
+    state.semaforos = [];
+    state.ticks = {};
+    state.needsTableUpdate = true;
+    updateSemTable(true);
+    toast(`${r.eliminados} semáforos eliminados`, 'info');
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+async function guardarSemaforo() {
+  const id = +document.getElementById('editId').value;
+  const estado = document.getElementById('editEstado').value;
+  const modo = document.getElementById('editModo').value;
+  const tv = +document.getElementById('editVerde').value;
+  const ta = +document.getElementById('editAmarillo').value;
+  const tr = +document.getElementById('editRojo').value;
+  try {
+    await apiFetch(`/api/semaforos/${id}/estado`, { method:'PUT', body: JSON.stringify({ estado, modo }) });
+    await apiFetch(`/api/semaforos/${id}/tiempos`, { method:'PUT', body: JSON.stringify({ tiempo_verde:tv, tiempo_amarillo:ta, tiempo_rojo:tr }) });
+    const idx = state.semaforos.findIndex(s => s.id === id);
+    if (idx >= 0) Object.assign(state.semaforos[idx], { estado, modo, tiempo_verde:tv, tiempo_amarillo:ta, tiempo_rojo:tr });
+    closeEditModal();
+    updateSemTable();
+    state.mapas.forEach(m => drawMap(m));
+    toast('Semáforo actualizado', 'success');
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+function switchTab(name) {
+  currentTab = name;
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const tabs = ['mapas','semaforos','intersecciones','historial'];
+    t.classList.toggle('active', tabs[i] === name);
+  });
+  document.querySelectorAll('.tab-content').forEach(tc => {
+    tc.classList.toggle('active', tc.id === 'tab-' + name);
+  });
+  if (name === 'historial') loadHistorial();
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+function toast(msg, type = 'info') {
+  const c = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  c.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ── CANVAS REDRAW LOOP ────────────────────────────────────────────────────────
+let lastDraw = 0;
+let lastTableUpdate = 0;
+
+function animLoop(ts) {
+  // Redibujar mapa cada ~250ms (4 FPS) para el contador local
+  if (ts - lastDraw > 250) {
+    if (currentTab === 'mapas') {
+      state.mapas.forEach(m => drawMap(m));
+    }
+    lastDraw = ts;
+  }
+  // Actualizar tabla de semaforos cuando cambian datos, máx 1 vez por segundo
+  if (ts - lastTableUpdate > 1000) {
+    updateSemTable();
+    lastTableUpdate = ts;
+  }
+  requestAnimationFrame(animLoop);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  connectWS();
+  await refreshAll();
+  requestAnimationFrame(animLoop);
+  setInterval(() => { if (ws?.readyState === 1) ws.send('ping'); }, 25000);
+});
+</script>
+</body>
+</html>
