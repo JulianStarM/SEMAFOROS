@@ -67,9 +67,7 @@ app.include_router(router)
 import os
 os.makedirs("static/css", exist_ok=True)
 os.makedirs("static/js", exist_ok=True)
-os.makedirs("api", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
-app.mount("/api/docs", StaticFiles(directory="api", html=True), name="api_docs")
 
 
 # WebSocket

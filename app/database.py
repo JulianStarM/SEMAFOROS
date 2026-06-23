@@ -4,9 +4,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-SUPABASE_URL = os.getenv("SUPABASE_URL", "https://kfuddhujgzawigqgmxpd.supabase.co")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmdWRkaHVqZ3phd2lncWdteHBkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTgwMzY3NiwiZXhwIjoyMDk3Mzc5Njc2fQ.-pBlGbnK68Lb3Z8Yxm_Uhbx7YfI4oPhH8Ow6PuJLwoM")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 MAPAS_API_URL = os.getenv("MAPAS_API_URL", "https://tecnologia-atkj.onrender.com/api/mapas")
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise ValueError(
+        "SUPABASE_URL y SUPABASE_KEY deben estar configuradas como variables de entorno. "
+        "Crea un archivo .env localmente o configúralas en el panel de Render."
+    )
 
 HEADERS = {
     "apikey": SUPABASE_KEY,

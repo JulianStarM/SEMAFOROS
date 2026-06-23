@@ -4,9 +4,18 @@ Ejecutar una sola vez para inicializar la base de datos
 """
 import httpx
 import os
+from dotenv import load_dotenv
 
-SUPABASE_URL = "https://kfuddhujgzawigqgmxpd.supabase.co"
-SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmdWRkaHVqZ3phd2lncWdteHBkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTgwMzY3NiwiZXhwIjoyMDk3Mzc5Njc2fQ.-pBlGbnK68Lb3Z8Yxm_Uhbx7YfI4oPhH8Ow6PuJLwoM"
+load_dotenv()
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SERVICE_KEY = os.getenv("SUPABASE_KEY")
+
+if not SUPABASE_URL or not SERVICE_KEY:
+    raise ValueError(
+        "SUPABASE_URL y SUPABASE_KEY deben estar configuradas. "
+        "Crea un archivo .env o exporta las variables de entorno."
+    )
 
 SQL_SETUP = """
 -- Tabla semaforos
