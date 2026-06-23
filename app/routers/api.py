@@ -13,6 +13,8 @@ from app.models import (
     MensajeResponse,
     SemaforoBulkDeleteRequest,
     SemaforoDeleteResponse,
+    GenerarSemaforosRequest,
+    GenerarSemaforosResponse,
 )
 import app.services.semaforo as semaforo_svc
 import app.services.ciclo as ciclo_svc
@@ -456,9 +458,8 @@ async def _get_decision_vehiculo(semaforo_id: int):
 
 
 # Alias internos mantenidos por compatibilidad (no visibles en Swagger)
-@router.post("/api/semaforos/generar", include_in_schema=False)
-async def _post_generar_semaforos(req=None):
-    from app.models import GenerarSemaforosRequest, GenerarSemaforosResponse
+@router.post("/api/semaforos/generar", response_model=GenerarSemaforosResponse, include_in_schema=False)
+async def _post_generar_semaforos(req: GenerarSemaforosRequest = None):
     if req is None:
         req = GenerarSemaforosRequest()
     try:
