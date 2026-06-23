@@ -202,6 +202,16 @@ async def actualizar_tiempos(semaforo_id: int, tiempo_verde: int, tiempo_amarill
     return result[0] if result else {}
 
 
+async def activar_semaforo(semaforo_id: int) -> Dict:
+    result = await supabase_patch('semaforos', {'id': semaforo_id}, {'activo': True})
+    return result[0] if result else {}
+
+
+async def desactivar_semaforo(semaforo_id: int) -> Dict:
+    result = await supabase_patch('semaforos', {'id': semaforo_id}, {'activo': False})
+    return result[0] if result else {}
+
+
 async def obtener_intersecciones() -> List[Dict]:
     """Devuelve todas las intersecciones de todos los mapas (aplanado desde la API de mapas)."""
     mapas = await _get_mapas_cached()

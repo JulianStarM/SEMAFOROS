@@ -23,32 +23,44 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Sistema Inteligente de Gestión de Semáforos",
+    title="API de Gestión de Semáforos",
+    summary="Servicio especializado para el control y monitoreo de semáforos en tiempo real.",
     description="""
-## 🚦 Sistema Inteligente de Control Semafórico
+## 🚦 API de Gestión de Semáforos
 
-Plataforma para gestión y control automático de semáforos en tiempo real.
+Servicio REST especializado en la gestión, monitoreo y control de semáforos dentro de una arquitectura distribuida de tráfico inteligente.
 
-### Características
-- ✅ Obtención automática de mapas desde API externa
-- ✅ Generación automática de semáforos por intersección
-- ✅ Control manual y automático
-- ✅ Ciclos automáticos con WebSockets
-- ✅ Dashboard en tiempo real
-- ✅ Persistencia en Supabase/PostgreSQL
+### Responsabilidad
+Esta API se encarga **exclusivamente** de los semáforos:
+- Consultar su estado actual (verde, amarillo, rojo).
+- Conocer el tiempo restante hasta el próximo cambio.
+- Configurar tiempos de funcionamiento.
+- Activar/desactivar semáforos.
+- Iniciar/detener ciclos automáticos.
+- Obtener estadísticas y monitoreo en tiempo real.
 
-### Flujo
-`API Mapas → Intersecciones → Semáforos → Dashboard → WebSocket`
+### Integración con otros módulos
+- **API de Mapas** → responsabilidad de otro módulo.
+- **API de Vehículos** → responsabilidad de otro módulo.
+- **API de Semáforos** → esta API.
+
+### Caso de uso principal para sistemas externos
+Un sistema externo puede consumir esta API para:
+1. Obtener todos los semáforos existentes (`GET /api/semaforos`).
+2. Conocer el estado actual de cada uno (`GET /api/semaforos/{id}/estado`).
+3. Saber cuánto tiempo falta para el siguiente cambio (`GET /api/semaforos/{id}/tiempo`).
+4. Consultar si el sistema está en modo automático o manual (`GET /api/ciclos/estado`).
+5. Obtener estadísticas generales (`GET /api/estadisticas`).
+6. Mostrar automáticamente los semáforos en su propio sistema.
     """,
     version="1.0.0",
-    contact={"name": "Sistema Semáforos", "email": "admin@semaforos.local"},
+    contact={"name": "Equipo de Tráfico Inteligente", "email": "api@semaforos.local"},
     license_info={"name": "MIT"},
     lifespan=lifespan,
     openapi_tags=[
-        {"name": "Mapas", "description": "Obtención de mapas desde API externa"},
-        {"name": "Semáforos", "description": "CRUD y control de semáforos"},
-        {"name": "Ciclos", "description": "Control del ciclo automático"},
-        {"name": "Dashboard", "description": "Vista consolidada del sistema"},
+        {"name": "Semáforos", "description": "Gestión completa de semáforos: estados, tiempos, activación y configuración."},
+        {"name": "Ciclos", "description": "Control del ciclo automático de semáforos."},
+        {"name": "Sistema", "description": "Estadísticas, dashboard y monitoreo del sistema."},
     ]
 )
 
